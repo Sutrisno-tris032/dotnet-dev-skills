@@ -40,7 +40,7 @@ Saat `new-project`, skill akan menanyakan:
 
 ```
 /plugin marketplace add Sutrisno-tris032/dotnet-dev-skills
-/plugin install Sutrisno-tris032/dotnet-dev-skills
+/plugin install dotnet-vsa@dotnet-dev-skills
 ```
 
 Perintah pertama mendaftarkan repositori GitHub ini sebagai marketplace; perintah kedua mengaktifkan
