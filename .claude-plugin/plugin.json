@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "dotnet-vsa",
+  "displayName": ".NET Clean Architecture + VSA",
+  "version": "1.0.0",
+  "description": "Scaffold, extend, or review a .NET Web API project using Clean Architecture combined with Vertical Slice Architecture (VSA). Supports new-project, new-feature, and review commands.",
+  "author": {
+    "name": "Sutrisno_Tris",
+    "email": "sutris.tris032@gmail.com"
+  },
+  "keywords": ["dotnet", "csharp", "clean-architecture", "vertical-slice", "vsa", "webapi", "cqrs", "mediatr"],
+  "license": "MIT",
+  "skills": "./skills/"
+}
