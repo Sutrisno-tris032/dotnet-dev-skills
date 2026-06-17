@@ -38,87 +38,15 @@ Saat `new-project`, skill akan menanyakan:
 
 ## Instalasi
 
-Ada dua cara menginstal skill ini di Claude Code.
-
-### Opsi A — Via GitHub (Direkomendasikan)
-
-**1. Push repository ke GitHub**
-
-```bash
-git init
-git add .
-git commit -m "feat: add dotnet-vsa skill"
-git remote add origin https://github.com/<username>/dotnet-dev-skills.git
-git push -u origin main
+```
+/plugin marketplace add Sutrisno-tris032/dotnet-dev-skills
+/plugin install Sutrisno-tris032/dotnet-dev-skills
 ```
 
-**2. Install di Claude Code**
-
-```
-/install-plugin https://github.com/<username>/dotnet-dev-skills.git
-```
-
-Atau tambahkan manual ke `C:\Users\<user>\.claude\settings.json`:
-
-```json
-{
-  "enabledPlugins": {
-    "dotnet-vsa@dotnet-dev-skills": true
-  },
-  "extraKnownMarketplaces": {
-    "dotnet-dev-skills": {
-      "source": {
-        "source": "git",
-        "url": "https://github.com/<username>/dotnet-dev-skills.git"
-      }
-    }
-  }
-}
-```
-
-### Opsi B — Local Git (Tanpa GitHub)
-
-**1. Init git lokal**
-
-```bash
-git init
-git add .
-git commit -m "feat: add dotnet-vsa skill"
-```
-
-**2. Tambahkan ke `C:\Users\<user>\.claude\settings.json`**
-
-```json
-{
-  "enabledPlugins": {
-    "dotnet-vsa@dotnet-dev-skills": true
-  },
-  "extraKnownMarketplaces": {
-    "dotnet-dev-skills": {
-      "source": {
-        "source": "git",
-        "url": "file:///D:/my-claude-skills/dotnet-dev-skills"
-      }
-    }
-  }
-}
-```
-
-## Update Skill
-
-Setelah melakukan perubahan pada file skill:
-
-```bash
-# Jika menggunakan GitHub
-git add .
-git commit -m "update: ..."
-git push
-```
-
-Lalu di Claude Code:
-```
-/update-plugin dotnet-vsa
-```
+Perintah pertama mendaftarkan repositori GitHub ini sebagai marketplace; perintah kedua mengaktifkan
+plugin tersebut dan mengaktifkan kelima skill sekaligus (skill-skill tersebut tidak diinstal
+secara terpisah). Untuk memperbarui nanti, jalankan kembali perintah instalasi setelah
+`/plugin marketplace update-plugin dotnet-vsa`.
 
 ## Struktur Skill
 
