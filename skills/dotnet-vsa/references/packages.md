@@ -2,35 +2,37 @@
 
 ## Compatibility Matrix
 
-**WAJIB dibaca saat `new-project`**. Setelah user memilih versi .NET, gunakan versi package dari baris yang sesuai. Jangan hardcode `*` wildcard di output akhir — tulis versi eksak mayor.minor.
+**WAJIB dibaca saat `new-project`**. Setelah user memilih versi .NET, gunakan versi package dari baris yang sesuai. **Jangan gunakan `*` wildcard** — tulis versi eksak. Versi di bawah adalah versi stabil terbaru yang sudah divalidasi.
 
 | Package | .NET 6 (C# 10) | .NET 7 (C# 11) | .NET 8 (C# 12) | .NET 9 (C# 13) |
 |---|---|---|---|---|
 | `TargetFramework` | `net6.0` | `net7.0` | `net8.0` | `net9.0` |
-| **MediatR** | `12.2.*` | `12.2.*` | `12.4.*` | `12.4.*` |
-| **FluentValidation** | `11.9.*` | `11.9.*` | `11.11.*` | `11.11.*` |
-| **FluentValidation.DependencyInjectionExtensions** | `11.9.*` | `11.9.*` | `11.11.*` | `11.11.*` |
-| **Microsoft.EntityFrameworkCore** | `6.0.*` | `7.0.*` | `8.0.*` | `9.0.*` |
-| **Microsoft.EntityFrameworkCore.SqlServer** | `6.0.*` | `7.0.*` | `8.0.*` | `9.0.*` |
-| **Npgsql.EntityFrameworkCore.PostgreSQL** | `6.0.*` | `7.0.*` | `8.0.*` | `9.0.*` |
-| **Microsoft.EntityFrameworkCore.Sqlite** | `6.0.*` | `7.0.*` | `8.0.*` | `9.0.*` |
-| **Microsoft.EntityFrameworkCore.Design** | `6.0.*` | `7.0.*` | `8.0.*` | `9.0.*` |
-| **Microsoft.EntityFrameworkCore.Tools** | `6.0.*` | `7.0.*` | `8.0.*` | `9.0.*` |
-| **Swashbuckle.AspNetCore** | `6.5.*` | `6.5.*` | `6.9.*` | `7.2.*` |
-| **Carter** | `7.2.*` | `7.2.*` | `8.0.*` | `8.1.*` |
-| **Mapster** | `7.3.*` | `7.3.*` | `7.4.*` | `7.4.*` |
-| **Mapster.DependencyInjection** | `1.0.*` | `1.0.*` | `1.0.*` | `1.0.*` |
-| **Serilog.AspNetCore** | `6.1.*` | `7.0.*` | `8.0.*` | `9.0.*` |
-| **Serilog.Sinks.Console** | `4.1.*` | `4.1.*` | `5.0.*` | `6.0.*` |
-| **Serilog.Sinks.File** | `5.0.*` | `5.0.*` | `5.0.*` | `6.0.*` |
-| **Microsoft.AspNetCore.Http.Abstractions** | `2.2.*` | `2.2.*` | `2.2.*` | `2.2.*` |
-| **Microsoft.NET.Test.Sdk** | `17.8.*` | `17.8.*` | `17.11.*` | `17.12.*` |
-| **xunit** | `2.6.*` | `2.6.*` | `2.9.*` | `2.9.*` |
-| **xunit.runner.visualstudio** | `2.5.*` | `2.5.*` | `2.8.*` | `2.8.*` |
-| **FluentAssertions** | `6.12.*` | `6.12.*` | `6.12.*` | `6.12.*` |
-| **NSubstitute** | `5.1.*` | `5.1.*` | `5.1.*` | `5.3.*` |
-| **Respawn** | `6.0.*` | `6.0.*` | `6.2.*` | `6.2.*` |
-| **Microsoft.AspNetCore.Mvc.Testing** | `6.0.*` | `7.0.*` | `8.0.*` | `9.0.*` |
+| **MediatR** | `12.2.0` | `12.2.0` | `12.4.1` | `12.4.1` |
+| **MediatR.Contracts** | `2.0.1` | `2.0.1` | `2.0.1` | `2.0.1` |
+| **FluentValidation** | `11.9.2` | `11.9.2` | `11.11.0` | `11.11.0` |
+| **FluentValidation.DependencyInjectionExtensions** | `11.9.2` | `11.9.2` | `11.11.0` | `11.11.0` |
+| **Microsoft.EntityFrameworkCore** | `6.0.36` | `7.0.20` | `8.0.11` | `9.0.4` |
+| **Microsoft.EntityFrameworkCore.SqlServer** | `6.0.36` | `7.0.20` | `8.0.11` | `9.0.4` |
+| **Npgsql.EntityFrameworkCore.PostgreSQL** | `6.0.22` | `7.0.18` | `8.0.11` | `9.0.4` |
+| **Microsoft.EntityFrameworkCore.Sqlite** | `6.0.36` | `7.0.20` | `8.0.11` | `9.0.4` |
+| **Microsoft.EntityFrameworkCore.Design** | `6.0.36` | `7.0.20` | `8.0.11` | `9.0.4` |
+| **Microsoft.EntityFrameworkCore.Tools** | `6.0.36` | `7.0.20` | `8.0.11` | `9.0.4` |
+| **Swashbuckle.AspNetCore** | `6.5.0` | `6.5.0` | `6.9.0` | `7.2.0` |
+| **Carter** | `7.2.0` | `7.2.0` | `8.2.1` | `9.0.0` |
+| **Mapster** | `7.3.0` | `7.3.0` | `7.4.0` | `7.4.0` |
+| **Mapster.DependencyInjection** | `1.0.0` | `1.0.0` | `1.0.0` | `1.0.0` |
+| **Serilog.AspNetCore** | `6.1.0` | `7.0.0` | `8.0.3` | `9.0.0` |
+| **Serilog.Sinks.Console** | `4.1.0` | `4.1.0` | `5.0.0` | `6.0.0` |
+| **Serilog.Sinks.File** | `5.0.0` | `5.0.0` | `6.0.0` | `6.0.0` |
+| **Microsoft.AspNetCore.Http.Abstractions** | `2.2.0` | `2.2.0` | `2.2.0` | `2.2.0` |
+| **Microsoft.NET.Test.Sdk** | `17.8.0` | `17.8.0` | `17.11.1` | `17.12.0` |
+| **xunit** | `2.6.6` | `2.6.6` | `2.9.2` | `2.9.2` |
+| **xunit.runner.visualstudio** | `2.5.8` | `2.5.8` | `2.8.2` | `2.8.2` |
+| **FluentAssertions** | `6.12.2` | `6.12.2` | `6.12.2` | `6.12.2` |
+| **NSubstitute** | `5.1.0` | `5.1.0` | `5.1.0` | `5.3.0` |
+| **MockQueryable.NSubstitute** | `7.0.0` | `7.0.0` | `7.0.0` | `7.0.1` |
+| **Respawn** | `6.0.2` | `6.0.2` | `6.2.1` | `6.2.1` |
+| **Microsoft.AspNetCore.Mvc.Testing** | `6.0.36` | `7.0.20` | `8.0.11` | `9.0.4` |
 
 ### Catatan Penting per Versi
 
@@ -55,7 +57,8 @@
 **NET 9:**
 - C# 13: `params` span, `field` keyword (preview)
 - `HybridCache` tersedia
-- OpenAPI built-in (`Microsoft.AspNetCore.OpenApi`) — Swashbuckle masih bisa dipakai tapi bersaing dengan built-in
+- OpenAPI built-in (`AddOpenApi`/`MapOpenApi`) tersedia — **HANYA .NET 9+**, jangan pakai di .NET 6/7/8
+- Swashbuckle 7.2.0 tetap bisa dipakai di .NET 9 dan direkomendasikan untuk kompatibilitas
 
 ---
 
@@ -93,7 +96,14 @@ await context.Orders.FindAsync(new object[] { request.Id }, ct);
 
 ### Domain (`{ProjectName}.Domain`)
 
-Tidak ada NuGet package eksternal. Domain harus pure C#.
+Hanya boleh referensi `MediatR.Contracts` (interface untuk domain event: `INotification`).
+Tidak boleh ada dependency ke Application, Infrastructure, atau package EF Core.
+
+```xml
+<ItemGroup>
+  <PackageReference Include="MediatR.Contracts" Version="2.0.1" />
+</ItemGroup>
+```
 
 ### Application (`{ProjectName}.Application`)
 
@@ -150,8 +160,15 @@ Gunakan versi dari Compatibility Matrix sesuai .NET target.
 
 ```xml
 <ItemGroup>
-  <!-- Swagger -->
+  <!-- Swagger — gunakan untuk SEMUA versi .NET (6/7/8/9) -->
+  <!-- JANGAN gunakan AddOpenApi/MapOpenApi untuk .NET 6/7/8 — itu fitur .NET 9+ saja -->
   <PackageReference Include="Swashbuckle.AspNetCore" Version="{versi dari tabel}" />
+
+  <!-- EF Design — diperlukan agar dotnet ef migrations bisa jalan dengan startup-project WebApi -->
+  <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="{versi dari tabel}">
+    <PrivateAssets>all</PrivateAssets>
+    <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+  </PackageReference>
 
   <!-- Opsional: Carter (jika user pilih minimal API) -->
   <PackageReference Include="Carter" Version="{versi dari tabel}" />
@@ -189,6 +206,8 @@ dotnet ef database update {MigrationName} \
   --startup-project src/{ProjectName}.WebApi
 ```
 
+**Prasyarat migrations bisa berjalan:** `Microsoft.EntityFrameworkCore.Design` harus ada di project WebApi (startup project). Sudah disertakan di template WebApi.csproj di atas.
+
 ---
 
 ## Testing Packages (project terpisah)
@@ -197,19 +216,52 @@ Gunakan versi dari Compatibility Matrix.
 
 ```xml
 <!-- {ProjectName}.Application.Tests.csproj -->
-<ItemGroup>
-  <PackageReference Include="Microsoft.NET.Test.Sdk" Version="{versi dari tabel}" />
-  <PackageReference Include="xunit" Version="{versi dari tabel}" />
-  <PackageReference Include="xunit.runner.visualstudio" Version="{versi dari tabel}" />
-  <PackageReference Include="FluentAssertions" Version="{versi dari tabel}" />
-  <PackageReference Include="NSubstitute" Version="{versi dari tabel}" />
-  <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="{versi EF dari tabel}" />
-</ItemGroup>
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>{TFM}</TargetFramework>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="{versi dari tabel}" />
+    <PackageReference Include="xunit" Version="{versi dari tabel}" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="{versi dari tabel}" />
+    <PackageReference Include="FluentAssertions" Version="{versi dari tabel}" />
+    <PackageReference Include="NSubstitute" Version="{versi dari tabel}" />
+    <!-- MockQueryable diperlukan agar DbSet mock mendukung async LINQ (ToListAsync, FirstOrDefaultAsync) -->
+    <PackageReference Include="MockQueryable.NSubstitute" Version="{versi dari tabel}" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\{ProjectName}.Application\{ProjectName}.Application.csproj" />
+  </ItemGroup>
+</Project>
 
 <!-- {ProjectName}.Integration.Tests.csproj -->
-<ItemGroup>
-  <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="{versi dari tabel}" />
-  <PackageReference Include="Testcontainers.MsSql" Version="3.*" />
-  <PackageReference Include="Respawn" Version="{versi dari tabel}" />
-</ItemGroup>
+<!-- Gunakan Testcontainers sesuai database provider yang dipilih user di step 1c: -->
+<!--   SQL Server  → Testcontainers.MsSql     -->
+<!--   PostgreSQL  → Testcontainers.PostgreSql -->
+<!--   SQLite      → tidak perlu Testcontainers (file-based) -->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>{TFM}</TargetFramework>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="{versi dari tabel}" />
+    <PackageReference Include="xunit" Version="{versi dari tabel}" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="{versi dari tabel}" />
+    <PackageReference Include="FluentAssertions" Version="{versi dari tabel}" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="{versi dari tabel}" />
+    <!-- Pilih sesuai provider: -->
+    <PackageReference Include="Testcontainers.MsSql" Version="3.9.0" />
+    <!-- <PackageReference Include="Testcontainers.PostgreSql" Version="3.9.0" /> -->
+    <PackageReference Include="Respawn" Version="{versi dari tabel}" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\{ProjectName}.WebApi\{ProjectName}.WebApi.csproj" />
+  </ItemGroup>
+</Project>
 ```

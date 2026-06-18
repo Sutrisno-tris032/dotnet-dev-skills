@@ -17,7 +17,7 @@
 
 ### Domain Layer (`{ProjectName}.Domain`)
 
-Pure C# class library. Tidak boleh punya NuGet package eksternal selain yang benar-benar domain-generic.
+Pure C# class library. Hanya boleh referensi `MediatR.Contracts` (untuk `INotification` di `BaseEvent`). Tidak boleh ada EF Core, FluentValidation, atau package Application/Infrastructure lainnya.
 
 ```
 Domain/
@@ -74,7 +74,7 @@ Application/
 │   │   ├── IApplicationDbContext.cs
 │   │   └── ICurrentUserService.cs
 │   └── Models/
-│       └── PaginatedList.cs
+│       └── ApiResponse.cs
 ├── Features/
 │   └── {Feature}/
 │       ├── Commands/
@@ -205,16 +205,25 @@ Pilih salah satu pola endpoint:
 public class OrdersController(ISender sender) : ControllerBase
 {
     [HttpPost]
-    public async Task<ActionResult<int>> Create(CreateOrderCommand command, CancellationToken ct)
-        => Ok(await sender.Send(command, ct));
+    public async Task<ActionResult<ApiResponse<int>>> Create(CreateOrderCommand command, CancellationToken ct)
+    {
+        var id = await sender.Send(command, ct);
+        return Ok(ApiResponse<int>.Ok(id));
+    }
 
-    [HttpGet("{id}")]
-    public async Task<ActionResult<OrderResponse>> GetById(int id, CancellationToken ct)
-        => Ok(await sender.Send(new GetOrderByIdQuery(id), ct));
+    [HttpGet("{id:int}")]
+    public async Task<ActionResult<ApiResponse<OrderResponse>>> GetById(int id, CancellationToken ct)
+    {
+        var result = await sender.Send(new GetOrderByIdQuery(id), ct);
+        return Ok(ApiResponse<OrderResponse>.Ok(result));
+    }
 }
 ```
 
 **Option B — Carter Minimal API (lebih minimal, endpoint lebih explicit):**
+
+Carter memerlukan `AddCarter()` dan `MapCarter()` di `Program.cs` agar endpoint terdaftar.
+
 ```csharp
 public class OrderEndpoints : ICarterModule
 {
@@ -222,11 +231,18 @@ public class OrderEndpoints : ICarterModule
     {
         var group = app.MapGroup("/api/orders").WithTags("Orders");
 
-        group.MapPost("/", async (CreateOrderCommand command, ISender sender, CancellationToken ct)
-            => Results.Ok(await sender.Send(command, ct)));
+        group.MapPost("/", async (CreateOrderCommand command, ISender sender, CancellationToken ct) =>
+        {
+            var id = await sender.Send(command, ct);
+            return Results.Ok(ApiResponse<int>.Ok(id));
+        }).Produces<ApiResponse<int>>(StatusCodes.Status201Created);
 
-        group.MapGet("/{id}", async (int id, ISender sender, CancellationToken ct)
-            => Results.Ok(await sender.Send(new GetOrderByIdQuery(id), ct)));
+        group.MapGet("/{id:int}", async (int id, ISender sender, CancellationToken ct) =>
+        {
+            var result = await sender.Send(new GetOrderByIdQuery(id), ct);
+            return Results.Ok(ApiResponse<OrderResponse>.Ok(result));
+        }).Produces<ApiResponse<OrderResponse>>()
+          .ProducesProblem(StatusCodes.Status404NotFound);
     }
 }
 ```
@@ -252,11 +268,14 @@ public class ValidationBehavior<TRequest, TResponse>(IEnumerable<IValidator<TReq
         if (!validators.Any()) return await next();
 
         var context = new ValidationContext<TRequest>(request);
-        var errors = validators
-            .Select(v => v.Validate(context))
-            .Where(r => !r.IsValid)
-            .SelectMany(r => r.Errors)
-            .ToList();
+        var errors = new List<FluentValidation.Results.ValidationFailure>();
+
+        // Sekuensial — DbContext tidak thread-safe; Task.WhenAll bisa menyebabkan race condition
+        foreach (var validator in validators)
+        {
+            var result = await validator.ValidateAsync(context, ct);
+            errors.AddRange(result.Errors);
+        }
 
         if (errors.Count != 0)
             throw new Exceptions.ValidationException(errors);

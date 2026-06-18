@@ -92,42 +92,47 @@ Application/Features/Orders/          ← nama fitur: PascalCase, plural
 // Application/GlobalUsings.cs
 global using MediatR;
 global using FluentValidation;
+global using FluentValidation.Results;
 global using Microsoft.EntityFrameworkCore;
+global using {ProjectName}.Domain.Common;
 global using {ProjectName}.Domain.Entities;
 global using {ProjectName}.Application.Common.Interfaces;
 global using {ProjectName}.Application.Common.Exceptions;
+global using {ProjectName}.Application.Common.Models;
 ```
 
 ## Return Type Endpoint
 
+Semua endpoint WAJIB membungkus response dalam `ApiResponse<T>`. Gunakan `ApiResponse<T>.Ok(data)` untuk sukses. Untuk operasi tanpa return data (Update/Delete), kembalikan `ApiResponse<object?>.Ok(null, "pesan")` dengan HTTP 200.
+
 ### Controller
 ```csharp
-// GET by id — bisa NotFound
-public async Task<ActionResult<OrderResponse>> GetById(int id, CancellationToken ct)
+// GET by id — bisa NotFound (dihandle middleware → 404 + ApiResponse)
+public async Task<ActionResult<ApiResponse<OrderResponse>>> GetById(int id, CancellationToken ct)
 {
     var result = await _sender.Send(new GetOrderByIdQuery(id), ct);
-    return Ok(result);  // NotFoundException dihandle middleware
+    return Ok(ApiResponse<OrderResponse>.Ok(result));
 }
 
 // POST — kembalikan 201 Created
-public async Task<ActionResult<int>> Create(CreateOrderCommand command, CancellationToken ct)
+public async Task<ActionResult<ApiResponse<int>>> Create(CreateOrderCommand command, CancellationToken ct)
 {
     var id = await _sender.Send(command, ct);
-    return CreatedAtAction(nameof(GetById), new { id }, id);
+    return CreatedAtAction(nameof(GetById), new { id }, ApiResponse<int>.Ok(id));
 }
 
-// PUT/PATCH — 204 No Content
-public async Task<IActionResult> Update(int id, UpdateOrderCommand command, CancellationToken ct)
+// PUT — 200 dengan konfirmasi
+public async Task<ActionResult<ApiResponse<object?>>> Update(int id, UpdateOrderCommand command, CancellationToken ct)
 {
     await _sender.Send(command with { Id = id }, ct);
-    return NoContent();
+    return Ok(ApiResponse<object?>.Ok(null, "Order updated successfully."));
 }
 
-// DELETE — 204 No Content
-public async Task<IActionResult> Delete(int id, CancellationToken ct)
+// DELETE — 200 dengan konfirmasi
+public async Task<ActionResult<ApiResponse<object?>>> Delete(int id, CancellationToken ct)
 {
     await _sender.Send(new DeleteOrderCommand(id), ct);
-    return NoContent();
+    return Ok(ApiResponse<object?>.Ok(null, "Order deleted successfully."));
 }
 ```
 
@@ -136,9 +141,9 @@ public async Task<IActionResult> Delete(int id, CancellationToken ct)
 group.MapGet("/{id:int}", async (int id, ISender sender, CancellationToken ct) =>
 {
     var result = await sender.Send(new GetOrderByIdQuery(id), ct);
-    return Results.Ok(result);
+    return Results.Ok(ApiResponse<OrderResponse>.Ok(result));
 })
-.Produces<OrderResponse>()
+.Produces<ApiResponse<OrderResponse>>()
 .ProducesProblem(StatusCodes.Status404NotFound)
 .WithName("GetOrderById");
 ```
@@ -154,15 +159,15 @@ Semua exception dihandle oleh `ExceptionHandlingMiddleware`. Handler **tidak bol
 // Exception lainnya → 500 (log detail, return generic message)
 ```
 
-Format response error (Problem Details — RFC 7807):
+Format response error (menggunakan `ApiResponse<T>` — konsisten dengan response sukses):
 ```json
 {
-  "type": "https://tools.ietf.org/html/rfc7807",
-  "title": "Validation Error",
-  "status": 400,
+  "success": false,
+  "data": null,
+  "message": "Validation failed.",
   "errors": {
-    "CustomerId": ["Customer ID is required"],
-    "Items": ["At least one item is required"]
+    "customerId": ["Customer ID is required"],
+    "items": ["At least one item is required"]
   }
 }
 ```

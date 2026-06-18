@@ -29,9 +29,11 @@ Gunakan template ini saat menjalankan `new-project`. Ganti:
 │   │   │   ├── Exceptions/
 │   │   │   │   ├── ValidationException.cs
 │   │   │   │   └── NotFoundException.cs
-│   │   │   └── Interfaces/
-│   │   │       ├── IApplicationDbContext.cs
-│   │   │       └── ICurrentUserService.cs
+│   │   │   ├── Interfaces/
+│   │   │   │   ├── IApplicationDbContext.cs
+│   │   │   │   └── ICurrentUserService.cs
+│   │   │   └── Models/
+│   │   │       └── ApiResponse.cs
 │   │   ├── Features/          ← fitur ditambahkan di sini
 │   │   ├── GlobalUsings.cs
 │   │   ├── DependencyInjection.cs
@@ -71,7 +73,25 @@ Gunakan template ini saat menjalankan `new-project`. Ganti:
 
 ## File Contents
 
+### `Directory.Build.props` (di root solution)
+
+Letakkan di folder `{ProjectName}/` (sejajar dengan `.sln`). Properti ini berlaku untuk semua project di bawahnya sehingga tidak perlu di-repeat di tiap `.csproj`.
+
+```xml
+<Project>
+  <PropertyGroup>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <LangVersion>default</LangVersion>
+  </PropertyGroup>
+</Project>
+```
+
 ### `{ProjectName}.Domain.csproj`
+
+Domain hanya boleh referensi `MediatR.Contracts` (untuk `INotification` di `BaseEvent`). Tidak boleh ada EF Core atau package lain.
+
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
@@ -80,6 +100,11 @@ Gunakan template ini saat menjalankan `new-project`. Ganti:
     <ImplicitUsings>enable</ImplicitUsings>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Hanya interfaces (INotification). MediatR runtime ada di Application, bukan di sini. -->
+    <PackageReference Include="MediatR.Contracts" Version="2.0.1" />
+  </ItemGroup>
 </Project>
 ```
 
@@ -124,7 +149,20 @@ using MediatR;
 
 namespace {ProjectName}.Domain.Common;
 
-public abstract class BaseEvent : INotification;
+public abstract class BaseEvent : INotification { }
+```
+
+### `Domain/Exceptions/DomainException.cs`
+
+Lempar exception ini dari entity/domain service ketika business rule dilanggar. Middleware menangkapnya dan mengembalikan HTTP 422.
+
+```csharp
+namespace {ProjectName}.Domain.Exceptions;
+
+public class DomainException : Exception
+{
+    public DomainException(string message) : base(message) { }
+}
 ```
 
 ### `{ProjectName}.Application.csproj`
@@ -154,10 +192,13 @@ public abstract class BaseEvent : INotification;
 ```csharp
 global using MediatR;
 global using FluentValidation;
+global using FluentValidation.Results;
 global using Microsoft.EntityFrameworkCore;
 global using {ProjectName}.Domain.Common;
+global using {ProjectName}.Domain.Entities;
 global using {ProjectName}.Application.Common.Interfaces;
 global using {ProjectName}.Application.Common.Exceptions;
+global using {ProjectName}.Application.Common.Models;
 ```
 
 ### `Application/Common/Interfaces/IApplicationDbContext.cs`
@@ -180,7 +221,33 @@ public interface ICurrentUserService
 }
 ```
 
+### `Application/Common/Models/ApiResponse.cs`
+
+Response envelope standar untuk semua endpoint. `Data` membawa payload sukses; `Errors` membawa detail kegagalan.
+
+```csharp
+namespace {ProjectName}.Application.Common.Models;
+
+public record ApiResponse<T>
+{
+    public bool Success { get; init; }
+    public T? Data { get; init; }
+    public string? Message { get; init; }
+    public object? Errors { get; init; }
+
+    public static ApiResponse<T> Ok(T data, string? message = null)
+        => new() { Success = true, Data = data, Message = message };
+
+    public static ApiResponse<T> Fail(string message, object? errors = null)
+        => new() { Success = false, Message = message, Errors = errors };
+}
+```
+
 ### `Application/Common/Exceptions/NotFoundException.cs`
+
+> Primary constructor digunakan di bawah (C# 12 / .NET 8+).
+> Untuk .NET 6/7, gunakan: `public NotFoundException(string name, object key) : base($"Entity '{name}' ({key}) was not found.") { }`
+
 ```csharp
 namespace {ProjectName}.Application.Common.Exceptions;
 
@@ -209,6 +276,13 @@ public class ValidationException : Exception
 ```
 
 ### `Application/Common/Behaviors/ValidationBehavior.cs`
+
+> Primary constructor digunakan di bawah (C# 12 / .NET 8+).
+> Untuk .NET 6/7, gunakan constructor biasa:
+> `private readonly IEnumerable<IValidator<TRequest>> _validators;`
+> `public ValidationBehavior(IEnumerable<IValidator<TRequest>> validators) => _validators = validators;`
+> lalu ganti `validators` dengan `_validators` di dalam method `Handle`.
+
 ```csharp
 namespace {ProjectName}.Application.Common.Behaviors;
 
@@ -222,11 +296,14 @@ public class ValidationBehavior<TRequest, TResponse>(IEnumerable<IValidator<TReq
             return await next();
 
         var context = new ValidationContext<TRequest>(request);
-        var errors = validators
-            .Select(v => v.Validate(context))
-            .Where(r => !r.IsValid)
-            .SelectMany(r => r.Errors)
-            .ToList();
+        var errors = new List<ValidationFailure>();
+
+        // Jalankan validator secara sekuensial — DbContext tidak thread-safe untuk concurrent access
+        foreach (var validator in validators)
+        {
+            var result = await validator.ValidateAsync(context, ct);
+            errors.AddRange(result.Errors);
+        }
 
         if (errors.Count != 0)
             throw new ValidationException(errors);
@@ -237,6 +314,12 @@ public class ValidationBehavior<TRequest, TResponse>(IEnumerable<IValidator<TReq
 ```
 
 ### `Application/Common/Behaviors/LoggingBehavior.cs`
+
+> Primary constructor digunakan di bawah (C# 12 / .NET 8+).
+> Untuk .NET 6/7, gunakan constructor biasa:
+> `private readonly ILogger<...> _logger; public LoggingBehavior(ILogger<...> logger) => _logger = logger;`
+> lalu ganti `logger` dengan `_logger` di dalam `Handle`.
+
 ```csharp
 using Microsoft.Extensions.Logging;
 
@@ -297,8 +380,20 @@ public static class DependencyInjection
 
   <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="{VER_EFCore}" />
-    <!-- Gunakan provider sesuai pilihan user: SqlServer / Npgsql / Sqlite -->
+
+    <!--
+      Sertakan HANYA satu provider sesuai pilihan user (step 1c):
+        SQL Server  → Microsoft.EntityFrameworkCore.SqlServer  (versi {VER_EFCore})
+        PostgreSQL  → Npgsql.EntityFrameworkCore.PostgreSQL    (versi dari tabel, kolom Npgsql)
+        SQLite      → Microsoft.EntityFrameworkCore.Sqlite     (versi {VER_EFCore})
+    -->
+    <!-- SQL Server (hapus dua baris di bawah jika bukan SQL Server): -->
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="{VER_EFCore}" />
+    <!-- PostgreSQL (hapus komentar jika PostgreSQL; versi dari tabel kolom "Npgsql" di packages.md):
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="{VER_Npgsql}" /> -->
+    <!-- SQLite (hapus komentar jika SQLite):
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="{VER_EFCore}" /> -->
+
     <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="{VER_EFCore}">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
@@ -307,7 +402,7 @@ public static class DependencyInjection
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.AspNetCore.Http.Abstractions" Version="2.2.*" />
+    <PackageReference Include="Microsoft.AspNetCore.Http.Abstractions" Version="2.2.0" />
   </ItemGroup>
 
   <ItemGroup>
@@ -423,7 +518,12 @@ public static class DependencyInjection
 
         services.AddDbContext<ApplicationDbContext>((sp, options) =>
         {
-            options.UseSqlServer(configuration.GetConnectionString("DefaultConnection"));
+            var connStr = configuration.GetConnectionString("DefaultConnection")!;
+            // Aktifkan SATU baris sesuai provider yang dipilih user (step 1c):
+            options.UseSqlServer(connStr);    // SQL Server
+            // options.UseNpgsql(connStr);    // PostgreSQL
+            // options.UseSqlite(connStr);    // SQLite
+
             options.AddInterceptors(sp.GetRequiredService<AuditableEntityInterceptor>());
         });
 
@@ -444,10 +544,19 @@ public static class DependencyInjection
     <TargetFramework>{TFM}</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- Swagger — gunakan untuk SEMUA versi .NET. AddOpenApi/MapOpenApi adalah .NET 9+ ONLY. -->
     <PackageReference Include="Swashbuckle.AspNetCore" Version="{VER_Swashbuckle}" />
+
+    <!-- WAJIB: diperlukan agar `dotnet ef migrations add --startup-project WebApi` bisa berjalan -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="{VER_EFCore}">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+    </PackageReference>
+
     <!-- Tambahkan Carter jika user pilih Minimal API -->
     <!-- <PackageReference Include="Carter" Version="{VER_Carter}" /> -->
   </ItemGroup>
@@ -460,8 +569,15 @@ public static class DependencyInjection
 ```
 
 ### `WebApi/Program.cs`
+
+> **Penting:** `AddOpenApi()` dan `MapOpenApi()` adalah fitur bawaan **ASP.NET Core 9+ saja**.
+> Untuk .NET 6/7/8, **WAJIB** gunakan Swashbuckle di bawah. Jangan gunakan `AddOpenApi` untuk .NET < 9.
+
+**Template A — Controllers (untuk .NET 6 / 7 / 8 / 9 dengan Swashbuckle):**
 ```csharp
+using Microsoft.AspNetCore.Mvc;
 using {ProjectName}.Application;
+using {ProjectName}.Application.Common.Models;
 using {ProjectName}.Infrastructure;
 using {ProjectName}.WebApi.Middleware;
 
@@ -470,7 +586,23 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddApplicationServices();
 builder.Services.AddInfrastructureServices(builder.Configuration);
 
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .ConfigureApiBehaviorOptions(options =>
+    {
+        // Normalisasi model-binding errors ke ApiResponse agar konsisten dengan middleware
+        options.InvalidModelStateResponseFactory = ctx =>
+        {
+            var errors = ctx.ModelState
+                .Where(e => e.Value?.Errors.Count > 0)
+                .ToDictionary(
+                    e => e.Key,
+                    e => e.Value!.Errors.Select(x => x.ErrorMessage).ToArray());
+
+            return new BadRequestObjectResult(
+                ApiResponse<object?>.Fail("Validation failed.", errors));
+        };
+    });
+
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
@@ -491,16 +623,61 @@ app.MapControllers();
 app.Run();
 ```
 
+**Template B — Carter Minimal API (untuk .NET 6 / 7 / 8 / 9 dengan Swashbuckle):**
+
+Aktifkan package Carter di `WebApi.csproj` (uncomment baris Carter), lalu gunakan Program.cs ini:
+
+```csharp
+using Carter;
+using {ProjectName}.Application;
+using {ProjectName}.Infrastructure;
+using {ProjectName}.WebApi.Middleware;
+
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddApplicationServices();
+builder.Services.AddInfrastructureServices(builder.Configuration);
+
+builder.Services.AddCarter();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+
+var app = builder.Build();
+
+app.UseMiddleware<ExceptionHandlingMiddleware>();
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+
+app.UseHttpsRedirection();
+app.UseAuthorization();
+app.MapCarter();
+
+app.Run();
+```
+
+> Jika user memilih .NET 9 dan ingin built-in OpenAPI, ganti blok Swagger (`AddEndpointsApiExplorer` + `AddSwaggerGen` + `UseSwagger` + `UseSwaggerUI`) dengan:
+> `builder.Services.AddOpenApi();` dan `app.MapOpenApi();` — tapi pastikan hapus Swashbuckle dari .csproj.
+
 ### `WebApi/Middleware/ExceptionHandlingMiddleware.cs`
 ```csharp
 using System.Net;
 using System.Text.Json;
 using {ProjectName}.Application.Common.Exceptions;
+using {ProjectName}.Application.Common.Models;
+using {ProjectName}.Domain.Exceptions;
 
 namespace {ProjectName}.WebApi.Middleware;
 
 public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<ExceptionHandlingMiddleware> logger)
 {
+    // Static readonly agar tidak alokasi JsonSerializerOptions baru tiap request
+    private static readonly JsonSerializerOptions _jsonOptions =
+        new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+
     public async Task InvokeAsync(HttpContext context)
     {
         try
@@ -516,37 +693,33 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
 
     private static async Task HandleExceptionAsync(HttpContext context, Exception exception)
     {
-        context.Response.ContentType = "application/problem+json";
+        context.Response.ContentType = "application/json";
 
-        var (statusCode, title, errors) = exception switch
+        var (statusCode, message, errors) = exception switch
         {
-            ValidationException ve => (HttpStatusCode.BadRequest, "Validation Error", ve.Errors),
-            NotFoundException => (HttpStatusCode.NotFound, "Not Found", (IDictionary<string, string[]>?)null),
-            _ => (HttpStatusCode.InternalServerError, "Server Error", null)
+            ValidationException ve  => (HttpStatusCode.BadRequest, "Validation failed.", (object?)ve.Errors),
+            NotFoundException       => (HttpStatusCode.NotFound, exception.Message, (object?)null),
+            DomainException         => (HttpStatusCode.UnprocessableEntity, exception.Message, (object?)null),
+            _                       => (HttpStatusCode.InternalServerError, "An unexpected error occurred.", (object?)null)
         };
 
         context.Response.StatusCode = (int)statusCode;
 
-        var response = new
-        {
-            type = "https://tools.ietf.org/html/rfc7807",
-            title,
-            status = (int)statusCode,
-            detail = exception.Message,
-            errors
-        };
-
-        await context.Response.WriteAsync(JsonSerializer.Serialize(response,
-            new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }));
+        var response = ApiResponse<object?>.Fail(message, errors);
+        await context.Response.WriteAsync(JsonSerializer.Serialize(response, _jsonOptions));
     }
 }
 ```
 
 ### `WebApi/appsettings.json`
+
+Gunakan template sesuai database provider yang dipilih user:
+
+**SQL Server (default):**
 ```json
 {
   "ConnectionStrings": {
-    "DefaultConnection": "Server=(localdb)\\mssqllocaldb;Database={ProjectName}Db;Trusted_Connection=True;"
+    "DefaultConnection": "Server=(localdb)\\mssqllocaldb;Database={ProjectName}Db;Trusted_Connection=True;MultipleActiveResultSets=true"
   },
   "Logging": {
     "LogLevel": {
@@ -558,27 +731,139 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
 }
 ```
 
+**PostgreSQL:**
+```json
+{
+  "ConnectionStrings": {
+    "DefaultConnection": "Host=localhost;Port=5432;Database={ProjectName}Db;Username=postgres;Password=your_password;Search Path=public"
+  },
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  },
+  "AllowedHosts": "*"
+}
+```
+
+> `Search Path=public` memastikan query menggunakan schema `public` secara default di PostgreSQL.
+> Ganti `public` dengan nama schema custom jika dibutuhkan.
+
+**SQLite:**
+```json
+{
+  "ConnectionStrings": {
+    "DefaultConnection": "Data Source={ProjectName}.db"
+  },
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  },
+  "AllowedHosts": "*"
+}
+```
+
+### `WebApi/appsettings.Development.json`
+
+Gunakan template sesuai database provider yang dipilih user (sama dengan pilihan di step 1c):
+
+**SQL Server (default):**
+```json
+{
+  "ConnectionStrings": {
+    "DefaultConnection": "Server=(localdb)\\mssqllocaldb;Database={ProjectName}DevDb;Trusted_Connection=True;MultipleActiveResultSets=true"
+  },
+  "Logging": {
+    "LogLevel": {
+      "Default": "Debug",
+      "Microsoft.AspNetCore": "Information",
+      "Microsoft.EntityFrameworkCore.Database.Command": "Information"
+    }
+  }
+}
+```
+
+**PostgreSQL:**
+```json
+{
+  "ConnectionStrings": {
+    "DefaultConnection": "Host=localhost;Port=5432;Database={ProjectName}DevDb;Username=postgres;Password=your_password;Search Path=public"
+  },
+  "Logging": {
+    "LogLevel": {
+      "Default": "Debug",
+      "Microsoft.AspNetCore": "Information",
+      "Microsoft.EntityFrameworkCore.Database.Command": "Information"
+    }
+  }
+}
+```
+
+**SQLite:**
+```json
+{
+  "ConnectionStrings": {
+    "DefaultConnection": "Data Source={ProjectName}Dev.db"
+  },
+  "Logging": {
+    "LogLevel": {
+      "Default": "Debug",
+      "Microsoft.AspNetCore": "Information",
+      "Microsoft.EntityFrameworkCore.Database.Command": "Information"
+    }
+  }
+}
+```
+
 ### `.gitignore`
 ```
-## .NET
+## Build output
 bin/
 obj/
+publish/
+*.nupkg
+*.snupkg
+
+## Visual Studio
 *.user
 *.suo
 .vs/
 *.DotSettings.user
+*.sln.iml
+
+## Test results
+TestResults/
+coverage/
+*.coverage
+*.coveragexml
 
 ## Migrations (opsional — uncomment jika tidak ingin commit migrations)
 # **/Migrations/
 
-## Environment
+## Secrets & env config overrides
 appsettings.*.local.json
+secrets.json
 *.env
 .env
 
 ## OS
 .DS_Store
 Thumbs.db
+desktop.ini
+
+## JetBrains Rider
+.idea/
+
+## VS Code
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json
+
+## Docker artifacts
+docker-compose.override.yml
 ```
 
 ### Solution file `{ProjectName}.sln`
@@ -589,4 +874,65 @@ dotnet sln add src/{ProjectName}.Domain
 dotnet sln add src/{ProjectName}.Application
 dotnet sln add src/{ProjectName}.Infrastructure
 dotnet sln add src/{ProjectName}.WebApi
+dotnet sln add tests/{ProjectName}.Application.Tests
+dotnet sln add tests/{ProjectName}.Integration.Tests
+```
+
+### `tests/{ProjectName}.Application.Tests/{ProjectName}.Application.Tests.csproj`
+
+Sesuaikan versi package dari Compatibility Matrix berdasarkan .NET version yang dipilih user.
+
+```xml
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>{TFM}</TargetFramework>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="{VER_TestSdk}" />
+    <PackageReference Include="xunit" Version="{VER_xunit}" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="{VER_xunitRunner}" />
+    <PackageReference Include="FluentAssertions" Version="{VER_FluentAssertions}" />
+    <PackageReference Include="NSubstitute" Version="{VER_NSubstitute}" />
+    <!-- MockQueryable diperlukan agar DbSet mock mendukung async LINQ (ToListAsync, FirstOrDefaultAsync) -->
+    <PackageReference Include="MockQueryable.NSubstitute" Version="{VER_MockQueryable}" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\{ProjectName}.Application\{ProjectName}.Application.csproj" />
+  </ItemGroup>
+</Project>
+```
+
+### `tests/{ProjectName}.Integration.Tests/{ProjectName}.Integration.Tests.csproj`
+
+Gunakan Testcontainers sesuai provider yang dipilih user di step 1c:
+- SQL Server → `Testcontainers.MsSql`
+- PostgreSQL → `Testcontainers.PostgreSql`
+- SQLite → tidak perlu Testcontainers (file-based)
+
+```xml
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>{TFM}</TargetFramework>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="{VER_TestSdk}" />
+    <PackageReference Include="xunit" Version="{VER_xunit}" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="{VER_xunitRunner}" />
+    <PackageReference Include="FluentAssertions" Version="{VER_FluentAssertions}" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="{VER_MvcTesting}" />
+    <!-- Pilih provider Testcontainers sesuai step 1c: -->
+    <PackageReference Include="Testcontainers.MsSql" Version="3.9.0" />
+    <!-- <PackageReference Include="Testcontainers.PostgreSql" Version="3.9.0" /> -->
+    <PackageReference Include="Respawn" Version="{VER_Respawn}" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\{ProjectName}.WebApi\{ProjectName}.WebApi.csproj" />
+  </ItemGroup>
+</Project>
 ```

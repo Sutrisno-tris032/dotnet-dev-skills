@@ -67,19 +67,25 @@ Baca `references/architecture.md` untuk penjelasan lengkap. Ringkasan:
 3. Baca `templates/project-structure.md` untuk struktur folder dan isi file.
 
 4. Buat **seluruh** file berikut (isi dengan kode nyata, bukan placeholder).
-   Ganti SEMUA `Version="X.*"` pada `PackageReference` dengan versi dari tabel:
+   Ganti SEMUA placeholder versi dengan versi eksak dari tabel Compatibility Matrix:
+   - `Directory.Build.props` (di root solution — properti shared untuk semua project)
    - Solution file (`.sln`)
    - Empat project `.csproj` dengan `PackageReference` sesuai versi yang dipilih
-   - `Domain/Common/BaseEntity.cs`, `AuditableEntity.cs`
+   - `Domain/Common/BaseEntity.cs`, `AuditableEntity.cs`, `BaseEvent.cs`
+   - `Domain/Exceptions/DomainException.cs`
    - `Application/Common/Behaviors/ValidationBehavior.cs`, `LoggingBehavior.cs`
    - `Application/Common/Exceptions/ValidationException.cs`, `NotFoundException.cs`
    - `Application/Common/Interfaces/IApplicationDbContext.cs`, `ICurrentUserService.cs`
+   - `Application/Common/Models/ApiResponse.cs`
    - `Infrastructure/Persistence/ApplicationDbContext.cs`
+   - `Infrastructure/Persistence/Interceptors/AuditableEntityInterceptor.cs`
+   - `Infrastructure/Services/CurrentUserService.cs`
    - `Infrastructure/DependencyInjection.cs`
    - `Application/DependencyInjection.cs`
-   - `WebApi/Program.cs` (minimal, hanya wiring DI + middleware)
+   - `WebApi/Program.cs` (wiring DI + middleware + Swagger; gunakan Template A untuk Controllers, Template B untuk Carter)
    - `WebApi/Middleware/ExceptionHandlingMiddleware.cs`
-   - `WebApi/appsettings.json` (connection string placeholder)
+   - `WebApi/appsettings.json` (connection string sesuai database provider yang dipilih)
+   - `WebApi/appsettings.Development.json` (development overrides dengan log level Debug)
    - `.gitignore` (standar .NET)
 
 5. Di awal output, tampilkan ringkasan pilihan yang digunakan:
@@ -98,13 +104,26 @@ Baca `references/architecture.md` untuk penjelasan lengkap. Ringkasan:
 - Semua project harus bisa **`dotnet build`** tanpa error.
 - `TargetFramework` di semua `.csproj` harus konsisten sesuai pilihan user (mis. `net8.0`).
 - Versi package WAJIB diambil dari tabel Compatibility Matrix di `references/packages.md` —
-  jangan gunakan `*` wildcard di output akhir; tuliskan versi mayor eksak (mis. `12.4.1` atau minimal `12.4.*`).
+  **jangan gunakan `*` wildcard** di output akhir; tuliskan versi eksak (mis. `12.4.1`).
 - Untuk .NET 6/7: hindari fitur C# 12 (`primary constructor`, collection expression `[]`) —
   gunakan sintaks yang kompatibel (.NET 6 = C# 10, .NET 7 = C# 11, .NET 8/9 = C# 12/13).
 - Gunakan **MediatR 12+** (bukan versi lama dengan namespace `MediatR.Extensions.*`).
+- **Domain.csproj** harus referensi `MediatR.Contracts` (bukan `MediatR`) — hanya interface `INotification`.
 - Gunakan **FluentValidation.DependencyInjectionExtensions** — daftarkan validator via `AddValidatorsFromAssembly`.
 - `ApplicationDbContext` implement `IApplicationDbContext` yang didefinisikan di Application.
 - `Program.cs` harus memanggil `builder.Services.AddApplicationServices()` dan `builder.Services.AddInfrastructureServices(builder.Configuration)`.
+- **OpenAPI/Swagger:** Untuk .NET 6/7/8 WAJIB gunakan Swashbuckle (`AddEndpointsApiExplorer` + `AddSwaggerGen`).
+  `AddOpenApi()` dan `MapOpenApi()` adalah **fitur .NET 9+ saja** — jangan generate untuk .NET < 9.
+- **`Microsoft.EntityFrameworkCore.Design` WAJIB ada di WebApi.csproj** (`PrivateAssets=all`) agar
+  `dotnet ef migrations add --startup-project WebApi` bisa berjalan.
+- **Database provider** — sertakan HANYA package dan DI call yang sesuai pilihan user (step 1c):
+  - SQL Server → `Microsoft.EntityFrameworkCore.SqlServer` + `options.UseSqlServer(connStr)`
+  - PostgreSQL → `Npgsql.EntityFrameworkCore.PostgreSQL` + `options.UseNpgsql(connStr)`
+  - SQLite → `Microsoft.EntityFrameworkCore.Sqlite` + `options.UseSqlite(connStr)`
+  Jangan sertakan package provider yang tidak dipilih user.
+- **Clean Architecture:** Handler TIDAK BOLEH inject `ApplicationDbContext` atau `DbContext` langsung —
+  selalu gunakan `IApplicationDbContext`. WebApi TIDAK BOLEH mengakses DbContext sama sekali.
+- **Carter:** Jika user memilih Carter, `Program.cs` WAJIB memanggil `builder.Services.AddCarter()` dan `app.MapCarter()` — tanpa keduanya semua endpoint Carter tidak akan terdaftar (404).
 
 ---
 
@@ -171,11 +190,14 @@ WebApi/
 ### Aturan wajib saat new-feature
 
 - Setiap Command/Query adalah `record` (bukan class).
-- Handler inject `IApplicationDbContext`, bukan `DbContext` langsung.
+- **Handler inject `IApplicationDbContext` (interface) — TIDAK BOLEH inject `ApplicationDbContext`, `DbContext`,
+  atau class konkret EF Core apapun.** Ini adalah aturan CA yang tidak boleh dilanggar.
 - Validator menggunakan `AbstractValidator<TCommand>`.
 - Response/DTO adalah `record` — tidak boleh mengekspos entity Domain langsung ke endpoint.
 - `DeleteCommand` hanya berisi `Id`; handler lempar `NotFoundException` jika tidak ditemukan.
 - Endpoint mengembalikan `Results<Ok<T>, NotFound, BadRequest<...>>` (typed results) jika pakai minimal API.
+- **Semua endpoint WAJIB membungkus response dalam `ApiResponse<T>`** — gunakan `ApiResponse<T>.Ok(data)` untuk sukses. Untuk operasi tanpa return data (Update/Delete), kembalikan `ApiResponse<object?>.Ok(null, "pesan")` dengan HTTP 200.
+- `ExceptionHandlingMiddleware` sudah menangani error dengan format `ApiResponse<object?>.Fail(message, errors)` — endpoint tidak perlu menangkap exception.
 
 ---
 
@@ -236,6 +258,7 @@ WebApi/
 - [ ] Tidak ada business logic di controller/endpoint
 - [ ] Endpoint hanya: terima request → kirim ke MediatR → kembalikan response
 - [ ] Error handling terpusat di middleware, bukan try-catch per endpoint
+- [ ] Semua response dibungkus `ApiResponse<T>` (sukses maupun error)
 
 ---
 
