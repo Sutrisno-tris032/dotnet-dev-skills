@@ -11,7 +11,7 @@
       "name": "dotnet-vsa",
       "source": "./",
       "description": "Scaffold, extend, or review a .NET Web API project using Clean Architecture combined with Vertical Slice Architecture (VSA).",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "keywords": ["dotnet", "csharp", "clean-architecture", "vertical-slice", "vsa", "webapi", "cqrs", "mediatr"]
     }
   ]
